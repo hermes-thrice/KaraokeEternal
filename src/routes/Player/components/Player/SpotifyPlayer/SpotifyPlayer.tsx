@@ -2,7 +2,7 @@ import React from 'react'
 import HttpApi from 'lib/HttpApi'
 import parseLrc, { type LrcLine } from './parseLrc'
 import LrcRenderer from './LrcRenderer'
-import SpotifyVisualizer from './SpotifyVisualizer'
+import SpotifyVisualizer, { type AudioFeatures } from './SpotifyVisualizer'
 import styles from './SpotifyPlayer.css'
 
 const api = new HttpApi('spotify')
@@ -26,6 +26,7 @@ interface SpotifyPlayerProps {
 
 interface SpotifyPlayerState {
   lyrics: LrcLine[]
+  features: AudioFeatures | null
   position: number
   isReady: boolean
   deviceId: string | null
@@ -36,9 +37,11 @@ class SpotifyPlayer extends React.Component<SpotifyPlayerProps, SpotifyPlayerSta
   positionInterval: ReturnType<typeof setInterval> | null = null
   isUnmounted = false
   wasPlaying = false
+  _lyricsLoaded = false
 
   state: SpotifyPlayerState = {
     lyrics: [],
+    features: null,
     position: 0,
     isReady: false,
     deviceId: null,
@@ -48,13 +51,16 @@ class SpotifyPlayer extends React.Component<SpotifyPlayerProps, SpotifyPlayerSta
     this.isUnmounted = false
     this.loadSDK()
     this.fetchLyrics()
+    this.fetchFeatures()
   }
 
   componentDidUpdate (prevProps: SpotifyPlayerProps) {
     if (prevProps.mediaKey !== this.props.mediaKey) {
       this.wasPlaying = false
+      this._lyricsLoaded = false
       this.startTrack()
       this.fetchLyrics()
+      this.fetchFeatures()
       return
     }
 
@@ -250,6 +256,7 @@ class SpotifyPlayer extends React.Component<SpotifyPlayerProps, SpotifyPlayerSta
     if (!this.props.lrclibTrackId) {
       console.log('[SpotifyPlayer] No lrclibTrackId, skipping lyrics')
       this.setState({ lyrics: [] })
+      this._lyricsLoaded = false
       return
     }
 
@@ -267,9 +274,35 @@ class SpotifyPlayer extends React.Component<SpotifyPlayerProps, SpotifyPlayerSta
       const lyrics = parseLrc(res.syncedLyrics)
       console.log('[SpotifyPlayer] Lyrics parsed: %d lines', lyrics.length)
       this.setState({ lyrics })
+      this._lyricsLoaded = true
     } catch (err) {
       console.error('[SpotifyPlayer] fetchLyrics error:', err)
-      this.setState({ lyrics: [] })
+      // Don't clear lyrics if another concurrent request already loaded them
+      // (handles StrictMode double-mount race condition)
+      if (!this._lyricsLoaded) {
+        this.setState({ lyrics: [] })
+      }
+    }
+  }
+
+  fetchFeatures = async () => {
+    if (!this.props.spotifyTrackId) {
+      this.setState({ features: null })
+      return
+    }
+
+    try {
+      const res = await api.get<AudioFeatures>(`/features/${this.props.spotifyTrackId}`)
+      if (!this.isUnmounted) {
+        console.log('[SpotifyPlayer] Audio features loaded: tempo=%d, energy=%s, valence=%s',
+          res.tempo, res.energy, res.valence)
+        this.setState({ features: res })
+      }
+    } catch {
+      console.log('[SpotifyPlayer] Audio features not available, using defaults')
+      if (!this.isUnmounted) {
+        this.setState({ features: null })
+      }
     }
   }
 
@@ -299,7 +332,7 @@ class SpotifyPlayer extends React.Component<SpotifyPlayerProps, SpotifyPlayerSta
     return (
       <div className={styles.container}>
         <SpotifyVisualizer
-          analysisData={null}
+          features={this.state.features}
           position={this.state.position}
           isPlaying={this.props.isPlaying}
           width={this.props.width}

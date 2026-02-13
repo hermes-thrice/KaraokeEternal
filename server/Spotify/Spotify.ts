@@ -19,6 +19,15 @@ interface SpotifySearchTrack {
   durationMs: number
 }
 
+interface SpotifyAudioFeatures {
+  tempo: number
+  energy: number
+  valence: number
+  danceability: number
+  key: number
+  mode: number
+}
+
 class Spotify {
   static get isConfigured () {
     return !!(env.KES_SPOTIFY_CLIENT_ID && env.KES_SPOTIFY_CLIENT_SECRET)
@@ -149,6 +158,35 @@ class Spotify {
       albumArt: track.album.images?.[0]?.url || '',
       durationMs: track.duration_ms,
     }))
+  }
+
+  static async getAudioFeatures (trackId: string): Promise<SpotifyAudioFeatures | null> {
+    const token = await Spotify.getAccessToken()
+    if (!token) return null
+
+    try {
+      const res = await fetch(`https://api.spotify.com/v1/audio-features/${trackId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (!res.ok) {
+        log.warn('Audio features unavailable for %s: %d', trackId, res.status)
+        return null
+      }
+
+      const data = await res.json()
+      return {
+        tempo: data.tempo,
+        energy: data.energy,
+        valence: data.valence,
+        danceability: data.danceability,
+        key: data.key,
+        mode: data.mode,
+      }
+    } catch (err) {
+      log.warn('Audio features error for %s: %s', trackId, err.message)
+      return null
+    }
   }
 
   static async revokeTokens () {

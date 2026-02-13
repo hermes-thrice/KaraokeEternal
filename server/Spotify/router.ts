@@ -86,6 +86,21 @@ router.delete('/auth', async (ctx) => {
   ctx.body = { success: true }
 })
 
+// GET /api/spotify/features/:trackId — audio features for visualizer
+router.get('/features/:trackId', async (ctx) => {
+  if (!ctx.user.userId) {
+    ctx.throw(401)
+  }
+
+  const features = await Spotify.getAudioFeatures(ctx.params.trackId)
+
+  if (!features) {
+    ctx.throw(404, 'Audio features not available')
+  }
+
+  ctx.body = features
+})
+
 // GET /api/spotify/search?q=... — any authenticated user
 router.get('/search', async (ctx) => {
   if (!ctx.user.userId) {
@@ -119,6 +134,5 @@ router.get('/search', async (ctx) => {
     ctx.throw(500, err.message)
   }
 })
-
 
 export default router
