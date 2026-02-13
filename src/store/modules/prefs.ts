@@ -76,10 +76,12 @@ export const requestScanStop = createAsyncThunk(
 // ------------------------------------
 // Reducer
 // ------------------------------------
-interface PrefsState {
+export interface PrefsState {
   isFirstRun?: boolean
   isScanning: boolean
   isReplayGainEnabled: boolean
+  isSpotifyConfigured?: boolean
+  isSpotifyConnected?: boolean
   paths: {
     result: number[]
     entities: Record<number, Path>

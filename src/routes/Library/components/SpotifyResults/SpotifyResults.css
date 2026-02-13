@@ -1,0 +1,107 @@
+.container {
+  padding: 0 4px;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  color: #1db954;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.spotifyIcon {
+  display: flex;
+  align-items: center;
+}
+
+.searchingDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1db954;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+
+.track {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: var(--border-radius);
+  transition: background-color 0.15s ease;
+}
+
+.track:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.track:active {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.albumArt {
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.trackInfo {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.trackTitle {
+  font-size: 14px;
+  color: var(--text-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trackArtist {
+  font-size: 12px;
+  color: var(--text-color-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trackMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.duration {
+  font-size: 12px;
+  color: var(--text-color-dim);
+}
+
+.lyricsTag {
+  font-size: 10px;
+  font-weight: 700;
+  color: #1db954;
+  border: 1px solid #1db954;
+  border-radius: 3px;
+  padding: 1px 4px;
+  line-height: 1;
+}

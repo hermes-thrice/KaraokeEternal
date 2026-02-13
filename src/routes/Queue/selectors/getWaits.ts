@@ -17,18 +17,24 @@ const getWaits = createSelector(
     let nextWait = 0
 
     queue.result.forEach((queueId, i) => {
-      const songId = queue.entities[queueId].songId
-      if (!songs.entities[songId]) return
+      const item = queue.entities[queueId]
+      const songId = item.songId
+      const isSpotify = 'spotifyTrackId' in item && item.spotifyTrackId
+      const duration = isSpotify
+        ? (('spotifyDurationMs' in item ? item.spotifyDurationMs : 0) || 0) / 1000
+        : (songId && songs.entities[songId] ? songs.entities[songId].duration : 0)
+
+      if (!duration) return
 
       if (i === curIdx) {
         // if history includes the current item it's already been played
         if (history.lastIndexOf(queueId) === -1) {
-          nextWait = Math.round(songs.entities[songId].duration - position)
+          nextWait = Math.round(duration - position)
         }
       } else if (i > curIdx) {
         // upcoming
         curWait += nextWait
-        nextWait = songs.entities[songId].duration
+        nextWait = duration
       }
 
       waits[queueId] = curWait

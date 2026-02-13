@@ -8,6 +8,7 @@ import queue from 'routes/Queue/modules/queue'
 import rooms from './modules/rooms'
 import songs from 'routes/Library/modules/songs'
 import songInfo from './modules/songInfo'
+import spotifySearch from './modules/spotifySearch'
 import starCounts from 'routes/Library/modules/starCounts'
 import status from './modules/status'
 import ui from './modules/ui'
@@ -24,6 +25,7 @@ const combinedReducer = combineSlices({
   rooms,
   songs,
   songInfo,
+  spotifySearch,
   starCounts,
   status,
   ui,

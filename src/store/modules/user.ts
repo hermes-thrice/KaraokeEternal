@@ -7,6 +7,7 @@ import { RootState } from 'store/store'
 import HttpApi from 'lib/HttpApi'
 import Persistor from 'store/Persistor'
 import { fetchPrefs } from './prefs'
+import { fetchSpotifyStatus } from './spotifySearch'
 import {
   ACCOUNT_RECEIVE,
   ACCOUNT_REQUEST,
@@ -41,6 +42,7 @@ export const login = createAsyncThunk(
 
     thunkAPI.dispatch(receiveAccount(user))
     thunkAPI.dispatch(fetchPrefs())
+    thunkAPI.dispatch(fetchSpotifyStatus())
     thunkAPI.dispatch(connectSocket())
     socket.open()
 
@@ -92,6 +94,7 @@ export const createAccount = createAsyncThunk<void, FormData, { state: RootState
 
     thunkAPI.dispatch(receiveAccount(user))
     thunkAPI.dispatch(fetchPrefs())
+    thunkAPI.dispatch(fetchSpotifyStatus())
     thunkAPI.dispatch(connectSocket())
     socket.open()
 
@@ -157,7 +160,7 @@ export const connectSocket = createAsyncThunk<void, void, { state: RootState }>(
 // ------------------------------------
 // Reducer
 // ------------------------------------
-interface UserState {
+export interface UserState {
   userId: number | null
   username: string | null
   name: string | null

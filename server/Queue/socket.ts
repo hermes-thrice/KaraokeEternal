@@ -1,6 +1,6 @@
 import Queue from './Queue.js'
 import Rooms from '../Rooms/Rooms.js'
-import { QUEUE_ADD, QUEUE_MOVE, QUEUE_REMOVE, QUEUE_PUSH } from '../../shared/actionTypes.js'
+import { QUEUE_ADD, QUEUE_ADD_SPOTIFY, QUEUE_MOVE, QUEUE_REMOVE, QUEUE_PUSH } from '../../shared/actionTypes.js'
 
 // ------------------------------------
 // Action Handlers
@@ -26,6 +26,34 @@ const ACTION_HANDLERS = {
 
     // success
     acknowledge({ type: QUEUE_ADD + '_SUCCESS' })
+
+    // to all in room
+    sock.server.to(Rooms.prefix(sock.user.roomId)).emit('action', {
+      type: QUEUE_PUSH,
+      payload: await Queue.get(sock.user.roomId),
+    })
+  },
+  [QUEUE_ADD_SPOTIFY]: async (sock, { payload }, acknowledge) => {
+    const { spotifyTrackId, spotifyData } = payload
+
+    try {
+      await Rooms.validate(sock.user.roomId, null, { validatePassword: false })
+    } catch (err) {
+      return acknowledge({
+        type: QUEUE_ADD_SPOTIFY + '_ERROR',
+        error: err.message,
+      })
+    }
+
+    await Queue.add({
+      roomId: sock.user.roomId,
+      spotifyTrackId,
+      spotifyData,
+      userId: sock.user.userId,
+    })
+
+    // success
+    acknowledge({ type: QUEUE_ADD_SPOTIFY + '_SUCCESS' })
 
     // to all in room
     sock.server.to(Rooms.prefix(sock.user.roomId)).emit('action', {

@@ -16,10 +16,13 @@ import koaRange from 'koa-range'
 import koaStatic from 'koa-static'
 import Media from './Media/Media.js'
 import Prefs from './Prefs/Prefs.js'
+import Lrclib from './Lrclib/Lrclib.js'
 import libraryRouter from './Library/router.js'
+import lrclibRouter from './Lrclib/router.js'
 import mediaRouter from './Media/router.js'
 import prefsRouter from './Prefs/router.js'
 import roomsRouter from './Rooms/router.js'
+import spotifyRouter from './Spotify/router.js'
 import userRouter from './User/router.js'
 import pushQueuesAndLibrary from './lib/pushQueuesAndLibrary.js'
 import { Server as SocketIO } from 'socket.io'
@@ -36,6 +39,10 @@ async function serverWorker ({ env, startScanner, stopScanner, shutdownHandlers 
   const indexFile = path.join(env.KES_PATH_WEBROOT, 'index.html')
   const urlPath = env.KES_URL_PATH.replace(/\/?$/, '/') // force trailing slash
   const jwtKey = await Prefs.getJwtKey(env.KES_ROTATE_KEY)
+
+  // open LRCLIB database (read-only, optional)
+  await Lrclib.open()
+  shutdownHandlers.push(() => Lrclib.close())
   const app = new Koa()
   let server, io
 
@@ -145,7 +152,8 @@ async function serverWorker ({ env, startScanner, stopScanner, shutdownHandlers 
     // skip JWT/session validation if non-API request or logging in/out
     if (!ctx.request.path.startsWith(`${urlPath}api/`)
       || ctx.request.path === `${urlPath}api/login`
-      || ctx.request.path === `${urlPath}api/logout`) {
+      || ctx.request.path === `${urlPath}api/logout`
+      || ctx.request.path === `${urlPath}api/spotify/callback`) {
       return next()
     }
 
@@ -179,9 +187,11 @@ async function serverWorker ({ env, startScanner, stopScanner, shutdownHandlers 
   })
 
   baseRouter.use(libraryRouter.routes())
+  baseRouter.use(lrclibRouter.routes())
   baseRouter.use(mediaRouter.routes())
   baseRouter.use(prefsRouter.routes())
   baseRouter.use(roomsRouter.routes())
+  baseRouter.use(spotifyRouter.routes())
   baseRouter.use(userRouter.routes())
   app.use(baseRouter.routes())
 

@@ -6,6 +6,7 @@ import { type PlayerState } from '../../modules/player'
 import { type PlayerVisualizerState } from '../../modules/playerVisualizer'
 
 const PlayerVisualizer = React.lazy(() => import('./PlayerVisualizer/PlayerVisualizer'))
+const SpotifyPlayer = React.lazy(() => import('./SpotifyPlayer/SpotifyPlayer'))
 
 interface PlayerProps {
   cdgAlpha: number
@@ -22,6 +23,8 @@ interface PlayerProps {
   mp4Alpha: number
   rgTrackGain?: number
   rgTrackPeak?: number
+  spotifyTrackId?: string
+  lrclibTrackId?: number | null
   visualizer: PlayerVisualizerState
   volume: number
   width: number
@@ -115,9 +118,35 @@ class Player extends React.Component<PlayerProps> {
   }
 
   render () {
+    // Spotify tracks don't need mediaId
+    if (this.props.mediaType === 'spotify') {
+      if (!this.props.isVisible || !this.props.spotifyTrackId) return null
+
+      return (
+        <React.Suspense fallback={null}>
+          <SpotifyPlayer
+            isPlaying={this.props.isPlaying}
+            mediaKey={this.props.mediaKey}
+            mediaReplayKey={this.props.mediaReplayKey}
+            spotifyTrackId={this.props.spotifyTrackId}
+            lrclibTrackId={this.props.lrclibTrackId}
+            volume={this.props.volume}
+            width={this.props.width}
+            height={this.props.height}
+            onEnd={this.props.onEnd}
+            onError={this.props.onError}
+            onLoad={this.props.onLoad}
+            onPlay={this.handlePlay}
+            onStatus={this.props.onStatus}
+          />
+        </React.Suspense>
+      )
+    }
+
     if (!this.props.isVisible || typeof this.props.mediaId !== 'number') return null
 
-    let PlayerComponent
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let PlayerComponent: React.ComponentType<any> | undefined
 
     if (this.props.mediaType === 'cdg') PlayerComponent = CDGPlayer
     else if (this.props.mediaType === 'mp4') PlayerComponent = this.props.isVideoKeyingEnabled ? MP4AlphaPlayer : MP4Player

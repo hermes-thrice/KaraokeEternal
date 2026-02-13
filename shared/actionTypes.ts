@@ -16,6 +16,7 @@ export const LIBRARY_PUSH_SONG = 'library/PUSH_SONG'
 
 // Queue
 export const QUEUE_ADD = 'server/QUEUE_ADD'
+export const QUEUE_ADD_SPOTIFY = 'server/QUEUE_ADD_SPOTIFY'
 export const QUEUE_MOVE = 'server/QUEUE_MOVE'
 export const QUEUE_PUSH = 'queue/PUSH'
 export const QUEUE_REMOVE = 'server/QUEUE_REMOVE'

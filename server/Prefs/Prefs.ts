@@ -2,6 +2,7 @@ import path from 'path'
 import sql from 'sqlate'
 import crypto from 'crypto'
 import Database from '../lib/Database.js'
+import env from '../lib/cli.js'
 import getLogger from '../lib/Log.js'
 const log = getLogger('Prefs')
 const { db } = Database
@@ -12,7 +13,8 @@ class Prefs {
    * @return {Promise<object>}
    */
   static async get () {
-    const prefs = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prefs: Record<string, any> = {
       paths: { result: [], entities: {} },
       roles: { result: [], entities: {} },
     }
@@ -29,6 +31,11 @@ class Prefs {
         prefs[row.key] = JSON.parse(row.data)
       })
     }
+
+    // expose Spotify status without exposing tokens
+    prefs.isSpotifyConfigured = !!(env.KES_SPOTIFY_CLIENT_ID && env.KES_SPOTIFY_CLIENT_SECRET)
+    prefs.isSpotifyConnected = !!prefs.spotifyTokens
+    delete prefs.spotifyTokens
 
     // include roles
     {
@@ -61,6 +68,19 @@ class Prefs {
     }
 
     return prefs
+  }
+
+  /**
+   * Get a single preference by key (raw, no filtering)
+   * @param {string} key - the preference key
+   * @return {Promise<any>} the parsed value, or null
+   */
+  static async getKey (key) {
+    const query = sql`
+      SELECT data FROM prefs WHERE key = ${key}
+    `
+    const row = await db.get(String(query), query.parameters)
+    return row ? JSON.parse(row.data) : null
   }
 
   /**

@@ -3,12 +3,13 @@ import { RootState, AppDispatch, AppThunk } from 'store/store'
 import getUpcoming from '../selectors/getUpcoming'
 import {
   QUEUE_ADD,
+  QUEUE_ADD_SPOTIFY,
   QUEUE_MOVE,
   QUEUE_PUSH,
   QUEUE_REMOVE,
   LOGOUT,
 } from 'shared/actionTypes'
-import type { QueueItem, OptimisticQueueItem } from 'shared/types'
+import type { QueueItem, OptimisticQueueItem, SpotifyTrack } from 'shared/types'
 
 // ------------------------------------
 // Actions
@@ -23,6 +24,22 @@ export const queueSong = createAction(QUEUE_ADD, (songId: number) => ({
   meta: { isOptimistic: true },
 }))
 
+export const queueSpotifySong = createAction(QUEUE_ADD_SPOTIFY, (track: SpotifyTrack) => ({
+  payload: {
+    spotifyTrackId: track.spotifyTrackId,
+    spotifyData: {
+      title: track.title,
+      artist: track.artist,
+      album: track.album,
+      albumArt: track.albumArt,
+      durationMs: track.durationMs,
+      hasLyrics: track.hasLyrics,
+      lrclibTrackId: track.lrclibTrackId,
+    },
+  },
+  meta: { isOptimistic: true },
+}))
+
 export const removeUpcomingItems = (userId: number): AppThunk => (dispatch: AppDispatch, getState: () => RootState) => {
   const upcomingQueueIds = getUpcoming(getState(), userId)
   dispatch(removeItem({ queueId: upcomingQueueIds }))
@@ -31,7 +48,7 @@ export const removeUpcomingItems = (userId: number): AppThunk => (dispatch: AppD
 // ------------------------------------
 // Reducer
 // ------------------------------------
-interface QueueState {
+export interface QueueState {
   isLoading: boolean
   result: number[] // queueIds
   entities: Record<number, QueueItem | OptimisticQueueItem>
@@ -55,6 +72,21 @@ const queueReducer = createReducer(initialState, (builder) => {
         queueId: nextQueueId,
         prevQueueId: nextQueueId - 1 || null,
         isOptimistic: true,
+      }
+    })
+    .addCase(queueSpotifySong, (state, { payload }) => {
+      // optimistic
+      const nextQueueId = state.result.length ? (state.result[state.result.length - 1] as number) + 1 : 1
+
+      state.result.push(nextQueueId)
+      state.entities[nextQueueId] = {
+        songId: null,
+        queueId: nextQueueId,
+        prevQueueId: nextQueueId - 1 || null,
+        isOptimistic: true,
+        spotifyTrackId: payload.spotifyTrackId,
+        spotifyTitle: payload.spotifyData.title,
+        spotifyArtist: payload.spotifyData.artist,
       }
     })
     .addCase(queuePush, (state, { payload }) => ({

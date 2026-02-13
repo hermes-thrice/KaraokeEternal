@@ -1,20 +1,26 @@
-import React, { useCallback, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { ensureState } from 'redux-optimistic-ui'
 import { RootState } from 'store/store'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import { toggleArtistResultExpanded } from '../../modules/library'
+import { spotifySearch, spotifySearchClear } from 'store/modules/spotifySearch'
 import getSearchResults from '../../selectors/getSearchResults'
 import getSongsStatus from '../../selectors/getSongsStatus'
 import PaddedList from 'components/PaddedList/PaddedList'
 import ArtistItem from '../ArtistItem/ArtistItem'
 import SongList from '../SongList/SongList'
+import SpotifyResults from '../SpotifyResults/SpotifyResults'
 import type { ListImperativeAPI, RowComponentProps } from 'react-window'
+import type { SpotifyTrack } from 'shared/types'
 import styles from './SearchResults.css'
 
 const ROW_HEIGHT_RESULT_HEADING = 24
 const ROW_HEIGHT_ARTIST = 48
 const ROW_HEIGHT_SONG = 56 // 52px + 4px margin
 const ROW_HEIGHT_SONG_WITH_ARTIST = 68 // 64px + 4px margin
+const ROW_HEIGHT_SPOTIFY_HEADING = 36
+const ROW_HEIGHT_SPOTIFY_TRACK = 64
+const ROW_HEIGHT_SPOTIFY_LOADING = 48
 
 interface SearchResultsProps {
   // starredArtistCounts: Record<number, number> // @todo
@@ -30,6 +36,9 @@ interface CustomRowProps {
   artistsResult: number[]
   songsResult: number[]
   expandedArtistResults: number[]
+  spotifyResults: SpotifyTrack[]
+  spotifyIsSearching: boolean
+  spotifyIsConnected: boolean
 }
 
 // this is outside the SearchResults component to keep the reference as stable as possible,
@@ -45,9 +54,15 @@ const RowComponent = ({
   artistsResult,
   songsResult,
   expandedArtistResults,
+  spotifyResults,
+  spotifyIsSearching,
+  spotifyIsConnected,
 }: RowComponentProps<CustomRowProps>) => {
   const { starredSongs } = useAppSelector(state => ensureState(state.userStars))
   const { upcoming } = useAppSelector(getSongsStatus)
+
+  // calculate the start index for Spotify section
+  const spotifyStartIndex = artistsResult.length + 3
 
   // # artist results heading
   if (index === 0) {
@@ -96,15 +111,31 @@ const RowComponent = ({
   }
 
   // song results
-  return (
-    <div style={style} key='songs'>
-      <SongList
-        songIds={songsResult}
-        showArtist
-        filterKeywords={filterKeywords}
-      />
-    </div>
-  )
+  if (index === artistsResult.length + 2) {
+    return (
+      <div style={style} key='songs'>
+        <SongList
+          songIds={songsResult}
+          showArtist
+          filterKeywords={filterKeywords}
+        />
+      </div>
+    )
+  }
+
+  // Spotify section
+  if (spotifyIsConnected && index >= spotifyStartIndex) {
+    return (
+      <div style={style} key='spotify'>
+        <SpotifyResults
+          results={spotifyResults}
+          isSearching={spotifyIsSearching}
+        />
+      </div>
+    )
+  }
+
+  return null
 }
 
 const SearchResults = ({ ui }: SearchResultsProps) => {
@@ -113,9 +144,37 @@ const SearchResults = ({ ui }: SearchResultsProps) => {
   const expandedArtistResults = useAppSelector(state => state.library.expandedArtistResults)
   const { filterStr, filterStarred } = useAppSelector(state => state.library)
   const { artistsResult, songsResult } = useAppSelector(getSearchResults)
+  const { results: spotifyResults, isSearching: spotifyIsSearching } = useAppSelector(state => state.spotifySearch)
+  const spotifyIsConnected = useAppSelector(state => state.prefs.isSpotifyConnected)
 
   const listRef = useRef<ListImperativeAPI | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const filterKeywords = useMemo(() => filterStr.trim() ? filterStr.trim().toLowerCase().split(' ') : [], [filterStr])
+
+  // debounced Spotify search
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+
+    const query = filterStr.trim()
+
+    if (!spotifyIsConnected || query.length < 3) {
+      dispatch(spotifySearchClear())
+      return
+    }
+
+    debounceRef.current = setTimeout(() => {
+      dispatch(spotifySearch(query))
+    }, 500)
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [filterStr, spotifyIsConnected, dispatch])
+
+  const hasSpotifySection = spotifyIsConnected && (spotifyResults.length > 0 || spotifyIsSearching)
+  const spotifyRowHeight = spotifyIsSearching && spotifyResults.length === 0
+    ? ROW_HEIGHT_SPOTIFY_LOADING
+    : ROW_HEIGHT_SPOTIFY_HEADING + spotifyResults.length * ROW_HEIGHT_SPOTIFY_TRACK
 
   const rowHeight = useCallback((index: number) => {
     // artists heading
@@ -137,8 +196,13 @@ const SearchResults = ({ ui }: SearchResultsProps) => {
     if (index === artistsResult.length + 1) return ROW_HEIGHT_RESULT_HEADING
 
     // song results
-    return songsResult.length * ROW_HEIGHT_SONG_WITH_ARTIST
-  }, [artistsResult, expandedArtistResults, artists.entities, songsResult.length])
+    if (index === artistsResult.length + 2) return songsResult.length * ROW_HEIGHT_SONG_WITH_ARTIST
+
+    // Spotify section
+    if (index === artistsResult.length + 3) return spotifyRowHeight
+
+    return 0
+  }, [artistsResult, expandedArtistResults, artists.entities, songsResult.length, spotifyRowHeight])
 
   const handleRef = useCallback((ref: ListImperativeAPI) => {
     if (ref) {
@@ -158,9 +222,12 @@ const SearchResults = ({ ui }: SearchResultsProps) => {
         artistsResult,
         songsResult,
         expandedArtistResults,
+        spotifyResults,
+        spotifyIsSearching,
+        spotifyIsConnected,
       }}
       rowHeight={rowHeight}
-      numRows={artistsResult.length + 3}
+      numRows={artistsResult.length + 3 + (hasSpotifySection ? 1 : 0)}
       paddingTop={ui.headerHeight}
       paddingRight={4}
       paddingBottom={ui.footerHeight}

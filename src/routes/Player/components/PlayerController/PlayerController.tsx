@@ -167,6 +167,8 @@ const PlayerController = (props: PlayerControllerProps) => {
         onStatus={handleStatus}
         rgTrackGain={queueItem ? queueItem.rgTrackGain : null}
         rgTrackPeak={queueItem ? queueItem.rgTrackPeak : null}
+        spotifyTrackId={queueItem?.spotifyTrackId}
+        lrclibTrackId={queueItem?.lrclibTrackId}
         visualizer={playerVisualizer}
         volume={player.volume}
         width={props.width}

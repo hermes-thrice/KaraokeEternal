@@ -14,24 +14,45 @@ export interface Song {
 
 export interface QueueItem {
   queueId: number
-  songId: number
+  songId: number | null
   userId: number
   prevQueueId: number
-  mediaId: number
+  mediaId: number | null
   rgTrackGain: number
   rgTrackPeak: number
   userDateUpdated: number
   userDisplayName: string
-  mediaType: 'cdg' | 'mp4'
+  mediaType: 'cdg' | 'mp4' | 'spotify'
   isOptimistic?: false
   isVideoKeyingEnabled: boolean
+  // Spotify-specific fields (present when mediaType === 'spotify')
+  spotifyTrackId?: string
+  spotifyTitle?: string
+  spotifyArtist?: string
+  spotifyAlbumArt?: string
+  spotifyDurationMs?: number
+  lrclibTrackId?: number | null
+}
+
+export interface SpotifyTrack {
+  spotifyTrackId: string
+  title: string
+  artist: string
+  album: string
+  albumArt: string
+  durationMs: number
+  hasLyrics: boolean
+  lrclibTrackId: number | null
 }
 
 export interface OptimisticQueueItem {
   isOptimistic: true
   prevQueueId: number
   queueId: number
-  songId: number
+  songId: number | null
+  spotifyTrackId?: string
+  spotifyTitle?: string
+  spotifyArtist?: string
 }
 
 export interface IRoomPrefs {
@@ -102,7 +123,7 @@ export interface PlaybackOptions {
   }
 }
 
-export type MediaType = 'cdg' | 'mp4' | ''
+export type MediaType = 'cdg' | 'mp4' | 'spotify' | ''
 
 export interface Media {
   songId: number
@@ -117,6 +138,8 @@ export interface Prefs {
   isFirstRun?: boolean
   isScanning: boolean
   isReplayGainEnabled: boolean
+  isSpotifyConfigured?: boolean
+  isSpotifyConnected?: boolean
   paths: {
     result: number[]
     entities: Record<number, Path>

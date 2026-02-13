@@ -8,13 +8,12 @@ class Queue {
   /**
    * Add a songId to a room's queue
    *
-   * @param  {object}      roomId, songId, userId
+   * @param  {object}      roomId, songId, userId, spotifyTrackId?, spotifyData?
    * @return {Promise}
    */
-  static async add ({ roomId, songId, userId }) {
+  static async add ({ roomId, songId = null, userId, spotifyTrackId = null, spotifyData = null }) {
     const fields = new Map()
     fields.set('roomId', roomId)
-    fields.set('songId', songId)
     fields.set('userId', userId)
     fields.set('prevQueueId', sql`(
       SELECT queueId
@@ -25,6 +24,15 @@ class Queue {
         WHERE prevQueueId IS NOT NULL
       )
     )`)
+
+    if (songId !== null) {
+      fields.set('songId', songId)
+    }
+
+    if (spotifyTrackId) {
+      fields.set('spotifyTrackId', spotifyTrackId)
+      fields.set('spotifyData', typeof spotifyData === 'string' ? spotifyData : JSON.stringify(spotifyData))
+    }
 
     const query = sql`
       INSERT INTO queue ${sql.tuple(Array.from(fields.keys()).map(sql.column))}
@@ -51,15 +59,16 @@ class Queue {
     let curQueueId = null
 
     const query = sql`
-      SELECT queueId, songId, userId, prevQueueId,
+      SELECT queueId, queue.songId, userId, prevQueueId,
+        queue.spotifyTrackId, queue.spotifyData,
         media.mediaId, media.relPath, media.rgTrackGain, media.rgTrackPeak,
         users.name AS userDisplayName, users.dateUpdated AS userDateUpdated,
         paths.pathId, paths.data AS pathData,
         MAX(isPreferred) AS isPreferred
       FROM queue
         INNER JOIN users USING(userId)
-        INNER JOIN media USING(songId)
-        INNER JOIN paths USING(pathId)
+        LEFT JOIN media ON media.songId = queue.songId
+        LEFT JOIN paths ON paths.pathId = media.pathId
       WHERE roomId = ${roomId}
       GROUP BY queueId
       ORDER BY queueId, paths.priority ASC
@@ -67,20 +76,47 @@ class Queue {
     const rows = await db.all(String(query), query.parameters)
 
     for (const row of rows) {
-      if (!pathData.has(row.pathId)) {
-        pathData.set(row.pathId, JSON.parse(row.pathData))
+      if (row.spotifyTrackId) {
+        // Spotify queue item
+        const data = row.spotifyData ? JSON.parse(row.spotifyData) : {}
+        entities[row.queueId] = {
+          queueId: row.queueId,
+          songId: null,
+          userId: row.userId,
+          prevQueueId: row.prevQueueId,
+          mediaId: null,
+          rgTrackGain: null,
+          rgTrackPeak: null,
+          userDisplayName: row.userDisplayName,
+          userDateUpdated: row.userDateUpdated,
+          mediaType: 'spotify',
+          isVideoKeyingEnabled: false,
+          spotifyTrackId: row.spotifyTrackId,
+          spotifyTitle: data.title,
+          spotifyArtist: data.artist,
+          spotifyAlbumArt: data.albumArt,
+          spotifyDurationMs: data.durationMs,
+          lrclibTrackId: data.lrclibTrackId || null,
+        }
+      } else {
+        // local queue item
+        if (row.pathId && !pathData.has(row.pathId)) {
+          pathData.set(row.pathId, JSON.parse(row.pathData))
+        }
+
+        const pathPrefs = row.pathId ? pathData.get(row.pathId)?.prefs : null
+
+        entities[row.queueId] = row
+        entities[row.queueId].mediaType = this.getType(row.relPath)
+        entities[row.queueId].isVideoKeyingEnabled = !!pathPrefs?.isVideoKeyingEnabled
+
+        // don't send over the wire
+        delete entities[row.queueId].relPath
+        delete entities[row.queueId].isPreferred
+        delete entities[row.queueId].pathData
+        delete entities[row.queueId].spotifyTrackId
+        delete entities[row.queueId].spotifyData
       }
-
-      const pathPrefs = pathData.get(row.pathId)?.prefs
-
-      entities[row.queueId] = row
-      entities[row.queueId].mediaType = this.getType(row.relPath)
-      entities[row.queueId].isVideoKeyingEnabled = !!pathPrefs?.isVideoKeyingEnabled
-
-      // don't send over the wire
-      delete entities[row.queueId].relPath
-      delete entities[row.queueId].isPreferred
-      delete entities[row.queueId].pathData
 
       if (row.prevQueueId === null) {
         // found the first item

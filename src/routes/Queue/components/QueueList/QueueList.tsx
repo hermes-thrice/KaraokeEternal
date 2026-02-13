@@ -44,20 +44,26 @@ const QueueList = () => {
   // build children array
   const items = queue.result.map((qId) => {
     const item = queue.entities[qId]
-    const duration = songs.entities[item.songId].duration
+    const isSpotify = item.mediaType === 'spotify' || ('spotifyTrackId' in item && item.spotifyTrackId)
+    const song = !isSpotify && item.songId ? songs.entities[item.songId] : null
+    const duration = isSpotify
+      ? (('spotifyDurationMs' in item ? item.spotifyDurationMs : 0) || 0) / 1000
+      : (song?.duration || 0)
     const isCurrent = (qId === queueId) && !isAtQueueEnd
     const isUpcoming = qId !== queueId && !playerHistory.includes(qId)
     const isOwner = item.userId === user.userId
+    const title = isSpotify ? (('spotifyTitle' in item ? item.spotifyTitle : '') || 'Spotify Track') : (song?.title || '')
+    const artist = isSpotify ? (('spotifyArtist' in item ? item.spotifyArtist : '') || '') : (song ? artists.entities[song.artistId]?.name || '' : '')
 
     return (
       <QueueItem
         {...item}
-        artist={artists.entities[songs.entities[item.songId].artistId].name}
+        artist={artist}
         errorMessage={isCurrent && errorMessage ? errorMessage : ''}
         isCurrent={isCurrent}
         key={qId}
         isErrored={isCurrent && isErrored}
-        isInfoable={user.isAdmin}
+        isInfoable={!isSpotify && user.isAdmin}
         isMovable={isUpcoming && (isOwner || user.isAdmin)}
         isOwner={isOwner}
         isPlayed={!isUpcoming && !isCurrent}
@@ -65,10 +71,10 @@ const QueueList = () => {
         isRemovable={isUpcoming && (isOwner || user.isAdmin)}
         isReplayable={(!isUpcoming || isCurrent) && user.isAdmin}
         isSkippable={isCurrent && (isOwner || user.isAdmin)}
-        isStarred={starredSongs.includes(item.songId)}
+        isStarred={!isSpotify && item.songId ? starredSongs.includes(item.songId) : false}
         isUpcoming={isUpcoming}
-        pctPlayed={isCurrent ? position / duration * 100 : 0}
-        title={songs.entities[item.songId].title}
+        pctPlayed={isCurrent && duration > 0 ? position / duration * 100 : 0}
+        title={title}
         wait={formatSeconds(waits[qId], true)} // fuzzy
         // actions
         onMoveClick={handleMoveClick}
