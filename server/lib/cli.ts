@@ -35,6 +35,9 @@ const env = {
   KES_SERVER_CONSOLE_LEVEL: parseInt(process.env.KES_SERVER_CONSOLE_LEVEL, 10) || undefined,
   KES_SERVER_LOG_LEVEL: parseInt(process.env.KES_SERVER_LOG_LEVEL, 10) || undefined,
   KES_URL_PATH: process.env.KES_URL_PATH || '/',
+  // Spotify API
+  KES_SPOTIFY_CLIENT_ID: process.env.KES_SPOTIFY_CLIENT_ID || '',
+  KES_SPOTIFY_CLIENT_SECRET: process.env.KES_SPOTIFY_CLIENT_SECRET || '',
   // support PUID/PGID convention
   KES_PUID: parseInt(process.env.PUID, 10) || undefined,
   KES_PGID: parseInt(process.env.PGID, 10) || undefined,

@@ -57,6 +57,25 @@ export default function (io, jwtKey) {
       return
     }
 
+    // validate that the user's room still exists (the roomId in the
+    // JWT may reference a room that has since been deleted)
+    if (typeof sock.user.roomId === 'number') {
+      const res = await Rooms.get(sock.user.roomId, { status: null })
+
+      if (!res.result.length) {
+        log.verbose('disconnected %s (%s) (room %s no longer exists)',
+          sock.user.name, sock.id, sock.user.roomId)
+
+        io.to(sock.id).emit('action', {
+          type: SOCKET_AUTH_ERROR,
+        })
+
+        sock.user = null
+        sock.disconnect()
+        return
+      }
+    }
+
     // attach disconnect handler
     sock.on('disconnect', (reason) => {
       log.verbose('%s (%s) disconnected (%s)',

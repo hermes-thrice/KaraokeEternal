@@ -4,6 +4,7 @@ dist/
 docs/public/
 docs/resources/
 node_modules/
+.env
 
 .DS_Store
 *.log

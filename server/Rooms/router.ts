@@ -112,6 +112,15 @@ router.delete('/:roomId', async (ctx) => {
 
   log.verbose('%s deleted roomId %s', ctx.user.name, roomId)
 
+  // disconnect all sockets in the deleted room so they
+  // re-authenticate and select a new room (their JWTs
+  // still reference the now-deleted roomId)
+  const sockets = await ctx.io.in(Rooms.prefix(roomId)).fetchSockets()
+
+  for (const s of sockets) {
+    s.disconnect()
+  }
+
   // send updated room list
   ctx.body = await Rooms.get(null, { status: STATUSES })
 })
